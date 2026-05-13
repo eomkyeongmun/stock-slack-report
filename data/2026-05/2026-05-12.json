@@ -803,5 +803,7 @@
       "market_cap": 2486079260600,
       "change_pct": 1.61
     }
-  ]
+  ],
+  "foreign_net_buy": [],
+  "inst_net_buy": []
 }
