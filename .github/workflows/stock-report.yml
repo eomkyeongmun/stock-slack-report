@@ -55,14 +55,11 @@ jobs:
                   print(f"Error fetching {market}: {e}")
                   return None
 
-          def get_net_purchases(market):
+          def get_net_purchases():
               try:
-                  df = stock.get_market_net_purchases_of_equities_by_ticker(
-                      prev, prev, market
-                  )
-                  return df
+                  return stock.get_market_net_purchases_of_equities_by_ticker(prev, prev, 'KOSPI')
               except Exception as e:
-                  print(f"Error fetching net purchases {market}: {e}")
+                  print(f"Error fetching net purchases: {e}")
                   return None
 
           def fmt_cap(v):
@@ -85,47 +82,39 @@ jobs:
                   return "➡️ -"
 
           kospi_df = get_top50('KOSPI')
-          kosdaq_df = get_top50('KOSDAQ')
-          kospi_net = get_net_purchases('KOSPI')
+          kospi_net = get_net_purchases()
 
-          # 외국인/기관 순매수 TOP5
-          foreign_top5 = []
-          inst_top5 = []
+          foreign_top10 = []
+          inst_top10 = []
           if kospi_net is not None and not kospi_net.empty:
               cols = kospi_net.columns.tolist()
               foreign_col = next((c for c in cols if '외국인' in c), None)
               inst_col = next((c for c in cols if '기관합계' in c or '기관' in c), None)
               if foreign_col:
-                  top = kospi_net.nlargest(5, foreign_col)
-                  for ticker, row in top.iterrows():
-                      name = stock.get_market_ticker_name(ticker)
-                      foreign_top5.append((name, int(row[foreign_col])))
+                  for ticker, row in kospi_net.nlargest(10, foreign_col).iterrows():
+                      foreign_top10.append((stock.get_market_ticker_name(ticker), int(row[foreign_col])))
               if inst_col:
-                  top = kospi_net.nlargest(5, inst_col)
-                  for ticker, row in top.iterrows():
-                      name = stock.get_market_ticker_name(ticker)
-                      inst_top5.append((name, int(row[inst_col])))
+                  for ticker, row in kospi_net.nlargest(10, inst_col).iterrows():
+                      inst_top10.append((stock.get_market_ticker_name(ticker), int(row[inst_col])))
 
           # JSON 저장
           data = {
               "date": prev_display,
               "kospi": [],
-              "kosdaq": [],
-              "foreign_net_buy": [{"name": n, "amount": v} for n, v in foreign_top5],
-              "inst_net_buy": [{"name": n, "amount": v} for n, v in inst_top5]
+              "foreign_net_buy": [{"name": n, "amount": v} for n, v in foreign_top10],
+              "inst_net_buy": [{"name": n, "amount": v} for n, v in inst_top10]
           }
-          for market_key, df in [('kospi', kospi_df), ('kosdaq', kosdaq_df)]:
-              if df is not None:
-                  for i, (ticker, row) in enumerate(df.iterrows(), 1):
-                      name = stock.get_market_ticker_name(ticker)
-                      data[market_key].append({
-                          "rank": i,
-                          "ticker": ticker,
-                          "name": name,
-                          "close": int(row.get('종가', 0)),
-                          "market_cap": int(row.get('시가총액', 0)),
-                          "change_pct": round(float(row.get('등락률', 0)), 2)
-                      })
+          if kospi_df is not None:
+              for i, (ticker, row) in enumerate(kospi_df.iterrows(), 1):
+                  name = stock.get_market_ticker_name(ticker)
+                  data["kospi"].append({
+                      "rank": i,
+                      "ticker": ticker,
+                      "name": name,
+                      "close": int(row.get('종가', 0)),
+                      "market_cap": int(row.get('시가총액', 0)),
+                      "change_pct": round(float(row.get('등락률', 0)), 2)
+                  })
 
           os.makedirs(f"data/{month_dir}", exist_ok=True)
           json_path = f"data/{month_dir}/{prev_display}.json"
@@ -133,30 +122,27 @@ jobs:
               json.dump(data, f, ensure_ascii=False, indent=2)
           print(f"Saved {json_path}")
 
-          # Claude 분석 (시총 + 수급 포함)
-          summary_lines = []
-          for label, df in [('KOSPI', kospi_df), ('KOSDAQ', kosdaq_df)]:
-              if df is None:
-                  continue
-              summary_lines.append(f"=== {label} TOP 10 ===")
-              for i, (ticker, row) in enumerate(df.head(10).iterrows(), 1):
+          # Claude 분석
+          summary_lines = ["=== KOSPI TOP 10 ==="]
+          if kospi_df is not None:
+              for i, (ticker, row) in enumerate(kospi_df.head(10).iterrows(), 1):
                   name = stock.get_market_ticker_name(ticker)
                   summary_lines.append(
                       f"{i}. {name} 시총:{fmt_cap(row['시가총액'])} 등락:{row.get('등락률',0):.2f}%"
                   )
-          if foreign_top5:
-              summary_lines.append("=== 외국인 순매수 TOP5 ===")
-              for name, amt in foreign_top5:
+          if foreign_top10:
+              summary_lines.append("=== 외국인 순매수 TOP10 ===")
+              for name, amt in foreign_top10:
                   summary_lines.append(f"{name}: {fmt_money(amt)}")
-          if inst_top5:
-              summary_lines.append("=== 기관 순매수 TOP5 ===")
-              for name, amt in inst_top5:
+          if inst_top10:
+              summary_lines.append("=== 기관 순매수 TOP10 ===")
+              for name, amt in inst_top10:
                   summary_lines.append(f"{name}: {fmt_money(amt)}")
           summary_text = "\n".join(summary_lines)
 
           bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
           prompt = (
-              f"{prev_display} 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 외국인/기관 수급도 반영해줘. 한국어로. 이모지 써도 됨.\n\n"
+              f"{prev_display} 한국 KOSPI 시장 데이터를 보고 3줄로 핵심만 분석해줘. 외국인/기관 수급도 반영해줘. 한국어로. 이모지 써도 됨.\n\n"
               + summary_text
               + "\n\n형식: 불릿 3개, 각 1줄, 핵심 인사이트만."
           )
@@ -174,14 +160,12 @@ jobs:
           ai_analysis = json.loads(response['body'].read())['content'][0]['text']
 
           # Slack 메시지
-          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {prev_display}*", ""]
-          for label, emoji, df in [('KOSPI', '🔵', kospi_df), ('KOSDAQ', '🟢', kosdaq_df)]:
-              if df is None:
-                  lines.append(f"*{emoji} {label}*: 데이터 없음")
-                  lines.append("")
-                  continue
-              lines.append(f"*{emoji} {label} 시총 TOP 50*")
-              for i, (ticker, row) in enumerate(df.iterrows(), 1):
+          lines = [f"*📊 KOSPI 시총순위 & 등락률 — {prev_display}*", ""]
+          if kospi_df is None:
+              lines.append("KOSPI 데이터 없음")
+          else:
+              lines.append("*🔵 KOSPI 시총 TOP 50*")
+              for i, (ticker, row) in enumerate(kospi_df.iterrows(), 1):
                   name = stock.get_market_ticker_name(ticker)
                   price = f"{int(row.get('종가', 0)):,}원" if row.get('종가', 0) else "-"
                   cap = fmt_cap(row['시가총액'])
@@ -189,14 +173,15 @@ jobs:
                   lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
               lines.append("")
 
-          if foreign_top5:
-              lines.append("*💰 외국인 순매수 TOP5 (KOSPI)*")
-              for i, (name, amt) in enumerate(foreign_top5, 1):
+          if foreign_top10:
+              lines.append("*💰 외국인 순매수 TOP10 (KOSPI)*")
+              for i, (name, amt) in enumerate(foreign_top10, 1):
                   lines.append(f"{i}. {name} | {fmt_money(amt)}")
               lines.append("")
-          if inst_top5:
-              lines.append("*🏦 기관 순매수 TOP5 (KOSPI)*")
-              for i, (name, amt) in enumerate(inst_top5, 1):
+
+          if inst_top10:
+              lines.append("*🏦 기관 순매수 TOP10 (KOSPI)*")
+              for i, (name, amt) in enumerate(inst_top10, 1):
                   lines.append(f"{i}. {name} | {fmt_money(amt)}")
               lines.append("")
 
