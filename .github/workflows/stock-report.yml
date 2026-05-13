@@ -10,91 +10,116 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        run: pip install yfinance requests
+        run: pip install pykrx requests boto3
 
-      - name: Fetch stock data & send to Slack
+      - name: Fetch stock data, analyze with Claude, send to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
         run: |
           python3 << 'EOF'
-          import yfinance as yf
-          import requests, os
-          from datetime import datetime
+          import requests, json, os, boto3
+          from datetime import datetime, timedelta
+          from pykrx import stock
 
           SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
 
-          KOSPI = [
-              ('005930.KS', '삼성전자'),
-              ('000660.KS', 'SK하이닉스'),
-              ('207940.KS', '삼성바이오로직스'),
-              ('005380.KS', '현대차'),
-              ('000270.KS', '기아'),
-              ('068270.KS', '셀트리온'),
-              ('051910.KS', 'LG화학'),
-              ('035420.KS', 'NAVER'),
-              ('028260.KS', '삼성물산'),
-              ('012330.KS', '현대모비스'),
-          ]
+          today = datetime.now().strftime('%Y%m%d')
+          today_display = datetime.now().strftime('%Y-%m-%d')
 
-          KOSDAQ = [
-              ('247540.KQ', '에코프로비엠'),
-              ('086520.KQ', '에코프로'),
-              ('028300.KQ', 'HLB'),
-              ('196170.KQ', '알테오젠'),
-              ('091990.KQ', '셀트리온헬스케어'),
-              ('036570.KQ', '엔씨소프트'),
-              ('263750.KQ', '펄어비스'),
-              ('357780.KQ', '솔브레인'),
-              ('145020.KQ', '휴젤'),
-              ('293490.KQ', '카카오게임즈'),
-          ]
+          # 전일 영업일 (주말이면 금요일)
+          d = datetime.now() - timedelta(days=1)
+          while d.weekday() >= 5:
+              d -= timedelta(days=1)
+          prev = d.strftime('%Y%m%d')
 
-          def get_data(ticker_list):
-              symbols = [t[0] for t in ticker_list]
-              names = {t[0]: t[1] for t in ticker_list}
-              syms_str = ' '.join(symbols)
-
-              hist = yf.download(syms_str, period='2d', progress=False, auto_adjust=True)
-              close = hist['Close']
-
-              results = []
-              for sym in symbols:
+          def get_top50(market):
+              try:
+                  df = stock.get_market_cap(today, market=market)
+                  if df.empty:
+                      df = stock.get_market_cap(prev, market=market)
+                  df = df.sort_values('시가총액', ascending=False).head(50)
+                  df['등락률'] = stock.get_market_ohlcv(today if not df.empty else prev, market=market)['등락률']
+                  return df
+              except:
+                  df = stock.get_market_cap(prev, market=market)
+                  df = df.sort_values('시가총액', ascending=False).head(50)
                   try:
-                      price = float(close[sym].iloc[-1])
-                      prev  = float(close[sym].iloc[-2])
-                      change = (price - prev) / prev * 100
-                      info = yf.Ticker(sym).fast_info
-                      cap = getattr(info, 'market_cap', 0) or 0
-                      results.append({'name': names[sym], 'price': price, 'change': change, 'cap': cap})
-                  except Exception as e:
-                      print(f"skip {sym}: {e}")
-              return sorted(results, key=lambda x: x['cap'], reverse=True)
+                      ohlcv = stock.get_market_ohlcv(prev, market=market)
+                      df['등락률'] = ohlcv['등락률']
+                  except:
+                      df['등락률'] = 0
+                  return df
 
           def fmt_cap(v):
               return f"{v/1_000_000_000_000:.1f}조"
 
           def fmt_change(v):
-              if v > 0: return f"📈 +{v:.2f}%"
-              elif v < 0: return f"📉 {v:.2f}%"
-              else: return "➡️ 0.00%"
+              try:
+                  v = float(v)
+                  if v > 0: return f"📈 +{v:.2f}%"
+                  elif v < 0: return f"📉 {v:.2f}%"
+                  else: return "➡️ 0.00%"
+              except:
+                  return "➡️ -"
 
-          today = datetime.now().strftime('%Y-%m-%d')
-          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today}*", ""]
+          # 데이터 수집
+          kospi_df = get_top50('KOSPI')
+          kosdaq_df = get_top50('KOSDAQ')
 
-          for label, emoji, ticker_list in [('KOSPI', '🔵', KOSPI), ('KOSDAQ', '🟢', KOSDAQ)]:
-              stocks = get_data(ticker_list)
-              lines.append(f"*{emoji} {label} 시총 TOP 10*")
-              for i, s in enumerate(stocks, 1):
-                  cap_str = fmt_cap(s['cap']) if s['cap'] else 'N/A'
-                  lines.append(f"{i}. {s['name']} | {s['price']:,.0f}원 | 시총 {cap_str} | {fmt_change(s['change'])}")
+          # 텍스트 요약 (Claude 분석용)
+          summary_lines = []
+          for label, df in [('KOSPI', kospi_df), ('KOSDAQ', kosdaq_df)]:
+              summary_lines.append(f"=== {label} TOP 10 ===")
+              for i, (ticker, row) in enumerate(df.head(10).iterrows(), 1):
+                  name = stock.get_market_ticker_name(ticker)
+                  summary_lines.append(f"{i}. {name} 시총:{fmt_cap(row['시가총액'])} 등락:{row.get('등락률',0):.2f}%")
+
+          summary_text = "\n".join(summary_lines)
+
+          # Claude via Bedrock 분석
+          bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
+          prompt = f"""오늘({today_display}) 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 한국어로. 이모지 써도 됨.
+
+{summary_text}
+
+형식: 불릿 3개, 각 1줄, 핵심 인사이트만."""
+
+          response = bedrock.invoke_model(
+              modelId='us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+              contentType='application/json',
+              accept='application/json',
+              body=json.dumps({
+                  "anthropic_version": "bedrock-2023-05-31",
+                  "max_tokens": 300,
+                  "messages": [{"role": "user", "content": prompt}]
+              })
+          )
+          ai_analysis = json.loads(response['body'].read())['content'][0]['text']
+
+          # 슬랙 메시지 조립
+          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today_display}*", ""]
+
+          for label, emoji, df in [('KOSPI', '🔵', kospi_df), ('KOSDAQ', '🟢', kosdaq_df)]:
+              lines.append(f"*{emoji} {label} 시총 TOP 50*")
+              for i, (ticker, row) in enumerate(df.iterrows(), 1):
+                  name = stock.get_market_ticker_name(ticker)
+                  price = f"{int(row.get('종가', 0)):,}원" if row.get('종가', 0) else "-"
+                  cap = fmt_cap(row['시가총액'])
+                  change = fmt_change(row.get('등락률', 0))
+                  lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
               lines.append("")
 
-          lines.append("_출처: Yahoo Finance_")
+          lines.append(f"*🤖 AI 분석*\n{ai_analysis}")
+          lines.append("\n_출처: KRX_")
+
           message = "\n".join(lines)
           print(message)
 
           resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
-          print(f"Slack: {resp.status_code} {resp.text}")
+          print(f"Slack: {resp.status_code}")
           if resp.status_code != 200:
               exit(1)
           EOF
