@@ -1,0 +1,101 @@
+name: 주간 주식 분석
+
+on:
+  schedule:
+    - cron: '25 23 * * 0'  # 월요일 08:25 KST
+  workflow_dispatch:
+
+jobs:
+  weekly:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: pip install requests boto3
+
+      - name: Weekly analysis and send to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          python3 << 'EOF'
+          import json, os, boto3, glob
+          import requests
+
+          SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
+
+          files = sorted(glob.glob('data/**/*.json', recursive=True))[-5:]
+          if not files:
+              print("데이터 없음, 건너뜀")
+              exit(0)
+
+          weekly_data = []
+          for f in files:
+              with open(f, encoding='utf-8') as fp:
+                  weekly_data.append(json.load(fp))
+
+          start_date = weekly_data[0]['date']
+          end_date = weekly_data[-1]['date']
+
+          # 일별 TOP3 요약
+          daily_summary = []
+          for day in weekly_data:
+              top3 = day['kospi'][:3]
+              daily_summary.append(
+                  f"[{day['date']}] " + ", ".join(f"{s['name']}({s['change_pct']:+.1f}%)" for s in top3)
+              )
+
+          # 주간 평균 등락률 (KOSPI)
+          stock_changes = {}
+          for day in weekly_data:
+              for s in day['kospi']:
+                  name = s['name']
+                  if name not in stock_changes:
+                      stock_changes[name] = []
+                  stock_changes[name].append(s['change_pct'])
+
+          avg_change = {k: sum(v)/len(v) for k, v in stock_changes.items() if len(v) >= 2}
+          top_gainers = sorted(avg_change.items(), key=lambda x: x[1], reverse=True)[:5]
+          top_losers = sorted(avg_change.items(), key=lambda x: x[1])[:5]
+
+          gainer_text = ", ".join(f"{n}({v:+.1f}%)" for n, v in top_gainers)
+          loser_text = ", ".join(f"{n}({v:+.1f}%)" for n, v in top_losers)
+          daily_text = "\n".join(daily_summary)
+
+          bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
+          prompt = (
+              f"지난 주({start_date}~{end_date}) 한국 KOSPI 주간 데이터 분석해줘. 한국어로. 이모지 써도 됨.\n\n"
+              f"일별 TOP3 등락:\n{daily_text}\n\n"
+              f"주간 평균 상승 TOP5: {gainer_text}\n"
+              f"주간 평균 하락 TOP5: {loser_text}\n\n"
+              "형식: 불릿 5개, 핵심 인사이트 + 이번주 주목 포인트 포함."
+          )
+
+          response = bedrock.invoke_model(
+              modelId='us.anthropic.claude-sonnet-4-5-20250929-v1:0',
+              contentType='application/json',
+              accept='application/json',
+              body=json.dumps({
+                  "anthropic_version": "bedrock-2023-05-31",
+                  "max_tokens": 600,
+                  "messages": [{"role": "user", "content": prompt}]
+              })
+          )
+          ai_analysis = json.loads(response['body'].read())['content'][0]['text']
+
+          message = (
+              f"*📅 주간 KOSPI 분석 — {start_date} ~ {end_date}*\n\n"
+              f"*🤖 AI 주간 분석*\n{ai_analysis}\n\n"
+              "_출처: KRX_"
+          )
+          print(message)
+
+          resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
+          print(f"Slack: {resp.status_code}")
+          if resp.status_code != 200:
+              exit(1)
+          EOF
