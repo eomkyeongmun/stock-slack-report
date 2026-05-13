@@ -1,0 +1,71 @@
+name: 주식 시총 리포트
+
+on:
+  schedule:
+    - cron: '50 23 * * 0-4'
+  workflow_dispatch:
+
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch KRX data & send to Slack
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        run: |
+          python3 << 'EOF'
+          import requests, json, os
+          from datetime import datetime
+
+          SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
+          headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'http://data.krx.co.kr'}
+
+          def fetch_krx(market_id):
+              r = requests.post(
+                  'http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd',
+                  data={'bld': 'dbms/MDC/STAT/standard/MDCSTAT01501', 'mktId': market_id,
+                        'share': '1', 'money': '1', 'csvxls_isNo': 'false'},
+                  headers=headers, timeout=15
+              )
+              return r.json().get('OutBlock_1', [])
+
+          def fmt_cap(v):
+              return f"{int(str(v).replace(',', '')) / 10000:.1f}조"
+
+          def fmt_change(v):
+              r = float(str(v).replace(',', ''))
+              if r > 0: return f"📈 +{r:.2f}%"
+              elif r < 0: return f"📉 {r:.2f}%"
+              else: return "➡️ 0.00%"
+
+          today = datetime.now().strftime('%Y-%m-%d')
+          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today}*", ""]
+
+          for label, emoji, mid in [('KOSPI', '🔵', 'STK'), ('KOSDAQ', '🟢', 'KSQ')]:
+              stocks = fetch_krx(mid)
+              if not stocks:
+                  lines.append(f"*{emoji} {label}*: 데이터 없음")
+                  lines.append("")
+                  continue
+              top10 = sorted(stocks, key=lambda x: int(str(x.get('MKTCAP','0')).replace(',','')), reverse=True)[:10]
+              lines.append(f"*{emoji} {label} 시총 TOP 10*")
+              for i, s in enumerate(top10, 1):
+                  name = s.get('ISU_ABBRV', '?')
+                  price = f"{int(str(s.get('TDD_CLSPRC','0')).replace(',','')):,}원"
+                  cap = fmt_cap(s.get('MKTCAP','0'))
+                  change = fmt_change(s.get('FLUC_RT','0'))
+                  lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
+              lines.append("")
+
+          lines.append("_출처: KRX_")
+          message = "\n".join(lines)
+          print(message)
+
+          resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
+          print(f"Slack response: {resp.status_code} {resp.text}")
+          if resp.status_code != 200:
+              exit(1)
+          EOF
