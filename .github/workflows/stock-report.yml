@@ -10,9 +10,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests yfinance
 
-      - name: Fetch KRX data & send to Slack
+      - name: Fetch stock data & send to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
@@ -21,46 +21,65 @@ jobs:
           from datetime import datetime
 
           SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
-          headers = {'User-Agent': 'Mozilla/5.0', 'Referer': 'http://data.krx.co.kr'}
 
-          def fetch_krx(market_id):
-              r = requests.post(
-                  'http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd',
-                  data={'bld': 'dbms/MDC/STAT/standard/MDCSTAT01501', 'mktId': market_id,
-                        'share': '1', 'money': '1', 'csvxls_isNo': 'false'},
-                  headers=headers, timeout=15
-              )
-              return r.json().get('OutBlock_1', [])
+          KOSPI_TOP10 = [
+              '005930.KS',  # 삼성전자
+              '000660.KS',  # SK하이닉스
+              '207940.KS',  # 삼성바이오로직스
+              '005380.KS',  # 현대차
+              '000270.KS',  # 기아
+              '068270.KS',  # 셀트리온
+              '051910.KS',  # LG화학
+              '035420.KS',  # NAVER
+              '028260.KS',  # 삼성물산
+              '012330.KS',  # 현대모비스
+          ]
+
+          KOSDAQ_TOP10 = [
+              '247540.KQ',  # 에코프로비엠
+              '086520.KQ',  # 에코프로
+              '028300.KQ',  # HLB
+              '196170.KQ',  # 알테오젠
+              '091990.KQ',  # 셀트리온헬스케어
+              '036570.KQ',  # 엔씨소프트
+              '263750.KQ',  # 펄어비스
+              '357780.KQ',  # 솔브레인
+              '145020.KQ',  # 휴젤
+              '293490.KQ',  # 카카오게임즈
+          ]
+
+          def get_quotes(tickers):
+              symbols = ','.join(tickers)
+              url = f'https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbols}&fields=shortName,regularMarketPrice,regularMarketChangePercent,marketCap&lang=ko-KR&region=KR'
+              headers = {'User-Agent': 'Mozilla/5.0'}
+              r = requests.get(url, headers=headers, timeout=15)
+              result = r.json().get('quoteResponse', {}).get('result', [])
+              return sorted(result, key=lambda x: x.get('marketCap', 0), reverse=True)
 
           def fmt_cap(v):
-              return f"{int(str(v).replace(',', '')) / 10000:.1f}조"
+              won = v * 1350  # USD to KRW approx
+              return f"{won/1_000_000_000_000:.1f}조"
 
           def fmt_change(v):
-              r = float(str(v).replace(',', ''))
-              if r > 0: return f"📈 +{r:.2f}%"
-              elif r < 0: return f"📉 {r:.2f}%"
+              if v > 0: return f"📈 +{v:.2f}%"
+              elif v < 0: return f"📉 {v:.2f}%"
               else: return "➡️ 0.00%"
 
           today = datetime.now().strftime('%Y-%m-%d')
           lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today}*", ""]
 
-          for label, emoji, mid in [('KOSPI', '🔵', 'STK'), ('KOSDAQ', '🟢', 'KSQ')]:
-              stocks = fetch_krx(mid)
-              if not stocks:
-                  lines.append(f"*{emoji} {label}*: 데이터 없음")
-                  lines.append("")
-                  continue
-              top10 = sorted(stocks, key=lambda x: int(str(x.get('MKTCAP','0')).replace(',','')), reverse=True)[:10]
+          for label, emoji, tickers in [('KOSPI', '🔵', KOSPI_TOP10), ('KOSDAQ', '🟢', KOSDAQ_TOP10)]:
+              stocks = get_quotes(tickers)
               lines.append(f"*{emoji} {label} 시총 TOP 10*")
-              for i, s in enumerate(top10, 1):
-                  name = s.get('ISU_ABBRV', '?')
-                  price = f"{int(str(s.get('TDD_CLSPRC','0')).replace(',','')):,}원"
-                  cap = fmt_cap(s.get('MKTCAP','0'))
-                  change = fmt_change(s.get('FLUC_RT','0'))
+              for i, s in enumerate(stocks, 1):
+                  name = s.get('shortName', '?')
+                  price = f"{s.get('regularMarketPrice', 0):,.0f}원"
+                  cap = fmt_cap(s.get('marketCap', 0))
+                  change = fmt_change(s.get('regularMarketChangePercent', 0))
                   lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
               lines.append("")
 
-          lines.append("_출처: KRX_")
+          lines.append("_출처: Yahoo Finance_")
           message = "\n".join(lines)
           print(message)
 
