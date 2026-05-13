@@ -2,7 +2,7 @@ name: 주식 시총 리포트
 
 on:
   schedule:
-    - cron: '50 23 * * 0-4'
+    - cron: '0 0 * * 1-5'  # 매일 09:00 KST (월~금)
   workflow_dispatch:
 
 jobs:
