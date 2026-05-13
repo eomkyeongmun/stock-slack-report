@@ -2,17 +2,23 @@ name: 주식 시총 리포트
 
 on:
   schedule:
-    - cron: '0 0 * * 1-5'  # 매일 09:00 KST (월~금)
+    - cron: '20 23 * * 0-4'  # 매일 08:20 KST (월~금)
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   report:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
       - name: Install dependencies
         run: pip install pykrx requests boto3
 
-      - name: Fetch stock data, analyze with Claude, send to Slack
+      - name: Fetch stock data, save JSON, analyze with Claude, send to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -28,23 +34,15 @@ jobs:
 
           SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
 
-          today = datetime.now().strftime('%Y%m%d')
-          today_display = datetime.now().strftime('%Y-%m-%d')
-
           d = datetime.now() - timedelta(days=1)
           while d.weekday() >= 5:
               d -= timedelta(days=1)
           prev = d.strftime('%Y%m%d')
+          prev_display = d.strftime('%Y-%m-%d')
+          month_dir = d.strftime('%Y-%m')
 
           def get_top50(market):
               try:
-                  df = stock.get_market_cap(today, market=market)
-                  if df.empty:
-                      df = stock.get_market_cap(prev, market=market)
-                  df = df.sort_values('시가총액', ascending=False).head(50)
-                  df['등락률'] = stock.get_market_ohlcv(today if not df.empty else prev, market=market)['등락률']
-                  return df
-              except:
                   df = stock.get_market_cap(prev, market=market)
                   df = df.sort_values('시가총액', ascending=False).head(50)
                   try:
@@ -53,6 +51,9 @@ jobs:
                   except:
                       df['등락률'] = 0
                   return df
+              except Exception as e:
+                  print(f"Error fetching {market}: {e}")
+                  return None
 
           def fmt_cap(v):
               return f"{v/1_000_000_000_000:.1f}조"
@@ -69,17 +70,43 @@ jobs:
           kospi_df = get_top50('KOSPI')
           kosdaq_df = get_top50('KOSDAQ')
 
+          # JSON 저장
+          data = {"date": prev_display, "kospi": [], "kosdaq": []}
+          for market_key, df in [('kospi', kospi_df), ('kosdaq', kosdaq_df)]:
+              if df is not None:
+                  for i, (ticker, row) in enumerate(df.iterrows(), 1):
+                      name = stock.get_market_ticker_name(ticker)
+                      data[market_key].append({
+                          "rank": i,
+                          "ticker": ticker,
+                          "name": name,
+                          "close": int(row.get('종가', 0)),
+                          "market_cap": int(row.get('시가총액', 0)),
+                          "change_pct": round(float(row.get('등락률', 0)), 2)
+                      })
+
+          os.makedirs(f"data/{month_dir}", exist_ok=True)
+          json_path = f"data/{month_dir}/{prev_display}.json"
+          with open(json_path, 'w', encoding='utf-8') as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+          print(f"Saved {json_path}")
+
+          # Claude 분석
           summary_lines = []
           for label, df in [('KOSPI', kospi_df), ('KOSDAQ', kosdaq_df)]:
+              if df is None:
+                  continue
               summary_lines.append(f"=== {label} TOP 10 ===")
               for i, (ticker, row) in enumerate(df.head(10).iterrows(), 1):
                   name = stock.get_market_ticker_name(ticker)
-                  summary_lines.append(f"{i}. {name} 시총:{fmt_cap(row['시가총액'])} 등락:{row.get('등락률',0):.2f}%")
+                  summary_lines.append(
+                      f"{i}. {name} 시총:{fmt_cap(row['시가총액'])} 등락:{row.get('등락률',0):.2f}%"
+                  )
           summary_text = "\n".join(summary_lines)
 
           bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
           prompt = (
-              f"오늘({today_display}) 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 한국어로. 이모지 써도 됨.\n\n"
+              f"{prev_display} 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 한국어로. 이모지 써도 됨.\n\n"
               + summary_text
               + "\n\n형식: 불릿 3개, 각 1줄, 핵심 인사이트만."
           )
@@ -96,8 +123,13 @@ jobs:
           )
           ai_analysis = json.loads(response['body'].read())['content'][0]['text']
 
-          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today_display}*", ""]
+          # Slack 메시지
+          lines = [f"*📊 한국 주식 시총순위 & 등락률 — {prev_display}*", ""]
           for label, emoji, df in [('KOSPI', '🔵', kospi_df), ('KOSDAQ', '🟢', kosdaq_df)]:
+              if df is None:
+                  lines.append(f"*{emoji} {label}*: 데이터 없음")
+                  lines.append("")
+                  continue
               lines.append(f"*{emoji} {label} 시총 TOP 50*")
               for i, (ticker, row) in enumerate(df.iterrows(), 1):
                   name = stock.get_market_ticker_name(ticker)
@@ -117,3 +149,11 @@ jobs:
           if resp.status_code != 200:
               exit(1)
           EOF
+
+      - name: Commit and push data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "data: $(date -u +'%Y-%m-%d') 시총 스냅샷"
+          git push
