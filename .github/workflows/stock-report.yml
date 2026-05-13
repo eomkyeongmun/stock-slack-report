@@ -88,8 +88,12 @@ jobs:
           inst_top10 = []
           if kospi_net is not None and not kospi_net.empty:
               cols = kospi_net.columns.tolist()
+              print(f"net purchases columns: {cols}")
               foreign_col = next((c for c in cols if '외국인' in c), None)
-              inst_col = next((c for c in cols if '기관합계' in c or '기관' in c), None)
+              inst_col = next((c for c in cols if '기관합계' in c), None)
+              if inst_col is None:
+                  inst_col = next((c for c in cols if '기관' in c), None)
+              print(f"foreign_col={foreign_col}, inst_col={inst_col}")
               if foreign_col:
                   for ticker, row in kospi_net.nlargest(10, foreign_col).iterrows():
                       foreign_top10.append((stock.get_market_ticker_name(ticker), int(row[foreign_col])))
