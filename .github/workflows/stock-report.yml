@@ -29,7 +29,6 @@ jobs:
           today = datetime.now().strftime('%Y%m%d')
           today_display = datetime.now().strftime('%Y-%m-%d')
 
-          # 전일 영업일 (주말이면 금요일)
           d = datetime.now() - timedelta(days=1)
           while d.weekday() >= 5:
               d -= timedelta(days=1)
@@ -65,27 +64,23 @@ jobs:
               except:
                   return "➡️ -"
 
-          # 데이터 수집
           kospi_df = get_top50('KOSPI')
           kosdaq_df = get_top50('KOSDAQ')
 
-          # 텍스트 요약 (Claude 분석용)
           summary_lines = []
           for label, df in [('KOSPI', kospi_df), ('KOSDAQ', kosdaq_df)]:
               summary_lines.append(f"=== {label} TOP 10 ===")
               for i, (ticker, row) in enumerate(df.head(10).iterrows(), 1):
                   name = stock.get_market_ticker_name(ticker)
                   summary_lines.append(f"{i}. {name} 시총:{fmt_cap(row['시가총액'])} 등락:{row.get('등락률',0):.2f}%")
-
           summary_text = "\n".join(summary_lines)
 
-          # Claude via Bedrock 분석
           bedrock = boto3.client('bedrock-runtime', region_name='us-east-1')
-          prompt = f"""오늘({today_display}) 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 한국어로. 이모지 써도 됨.
-
-{summary_text}
-
-형식: 불릿 3개, 각 1줄, 핵심 인사이트만."""
+          prompt = (
+              f"오늘({today_display}) 한국 주식 시장 데이터를 보고 3줄로 핵심만 분석해줘. 한국어로. 이모지 써도 됨.\n\n"
+              + summary_text
+              + "\n\n형식: 불릿 3개, 각 1줄, 핵심 인사이트만."
+          )
 
           response = bedrock.invoke_model(
               modelId='us.anthropic.claude-sonnet-4-5-20250929-v1:0',
@@ -99,9 +94,7 @@ jobs:
           )
           ai_analysis = json.loads(response['body'].read())['content'][0]['text']
 
-          # 슬랙 메시지 조립
           lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today_display}*", ""]
-
           for label, emoji, df in [('KOSPI', '🔵', kospi_df), ('KOSDAQ', '🟢', kosdaq_df)]:
               lines.append(f"*{emoji} {label} 시총 TOP 50*")
               for i, (ticker, row) in enumerate(df.iterrows(), 1):
@@ -111,7 +104,6 @@ jobs:
                   change = fmt_change(row.get('등락률', 0))
                   lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
               lines.append("")
-
           lines.append(f"*🤖 AI 분석*\n{ai_analysis}")
           lines.append("\n_출처: KRX_")
 
