@@ -10,55 +10,68 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install dependencies
-        run: pip install requests yfinance
+        run: pip install yfinance requests
 
       - name: Fetch stock data & send to Slack
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: |
           python3 << 'EOF'
-          import requests, json, os
+          import yfinance as yf
+          import requests, os
           from datetime import datetime
 
           SLACK_WEBHOOK_URL = os.environ['SLACK_WEBHOOK_URL']
 
-          KOSPI_TOP10 = [
-              '005930.KS',  # 삼성전자
-              '000660.KS',  # SK하이닉스
-              '207940.KS',  # 삼성바이오로직스
-              '005380.KS',  # 현대차
-              '000270.KS',  # 기아
-              '068270.KS',  # 셀트리온
-              '051910.KS',  # LG화학
-              '035420.KS',  # NAVER
-              '028260.KS',  # 삼성물산
-              '012330.KS',  # 현대모비스
+          KOSPI = [
+              ('005930.KS', '삼성전자'),
+              ('000660.KS', 'SK하이닉스'),
+              ('207940.KS', '삼성바이오로직스'),
+              ('005380.KS', '현대차'),
+              ('000270.KS', '기아'),
+              ('068270.KS', '셀트리온'),
+              ('051910.KS', 'LG화학'),
+              ('035420.KS', 'NAVER'),
+              ('028260.KS', '삼성물산'),
+              ('012330.KS', '현대모비스'),
           ]
 
-          KOSDAQ_TOP10 = [
-              '247540.KQ',  # 에코프로비엠
-              '086520.KQ',  # 에코프로
-              '028300.KQ',  # HLB
-              '196170.KQ',  # 알테오젠
-              '091990.KQ',  # 셀트리온헬스케어
-              '036570.KQ',  # 엔씨소프트
-              '263750.KQ',  # 펄어비스
-              '357780.KQ',  # 솔브레인
-              '145020.KQ',  # 휴젤
-              '293490.KQ',  # 카카오게임즈
+          KOSDAQ = [
+              ('247540.KQ', '에코프로비엠'),
+              ('086520.KQ', '에코프로'),
+              ('028300.KQ', 'HLB'),
+              ('196170.KQ', '알테오젠'),
+              ('091990.KQ', '셀트리온헬스케어'),
+              ('036570.KQ', '엔씨소프트'),
+              ('263750.KQ', '펄어비스'),
+              ('357780.KQ', '솔브레인'),
+              ('145020.KQ', '휴젤'),
+              ('293490.KQ', '카카오게임즈'),
           ]
 
-          def get_quotes(tickers):
-              symbols = ','.join(tickers)
-              url = f'https://query1.finance.yahoo.com/v7/finance/quote?symbols={symbols}&fields=shortName,regularMarketPrice,regularMarketChangePercent,marketCap&lang=ko-KR&region=KR'
-              headers = {'User-Agent': 'Mozilla/5.0'}
-              r = requests.get(url, headers=headers, timeout=15)
-              result = r.json().get('quoteResponse', {}).get('result', [])
-              return sorted(result, key=lambda x: x.get('marketCap', 0), reverse=True)
+          def get_data(ticker_list):
+              symbols = [t[0] for t in ticker_list]
+              names = {t[0]: t[1] for t in ticker_list}
+              syms_str = ' '.join(symbols)
+
+              hist = yf.download(syms_str, period='2d', progress=False, auto_adjust=True)
+              close = hist['Close']
+
+              results = []
+              for sym in symbols:
+                  try:
+                      price = float(close[sym].iloc[-1])
+                      prev  = float(close[sym].iloc[-2])
+                      change = (price - prev) / prev * 100
+                      info = yf.Ticker(sym).fast_info
+                      cap = getattr(info, 'market_cap', 0) or 0
+                      results.append({'name': names[sym], 'price': price, 'change': change, 'cap': cap})
+                  except Exception as e:
+                      print(f"skip {sym}: {e}")
+              return sorted(results, key=lambda x: x['cap'], reverse=True)
 
           def fmt_cap(v):
-              won = v * 1350  # USD to KRW approx
-              return f"{won/1_000_000_000_000:.1f}조"
+              return f"{v/1_000_000_000_000:.1f}조"
 
           def fmt_change(v):
               if v > 0: return f"📈 +{v:.2f}%"
@@ -68,15 +81,12 @@ jobs:
           today = datetime.now().strftime('%Y-%m-%d')
           lines = [f"*📊 한국 주식 시총순위 & 등락률 — {today}*", ""]
 
-          for label, emoji, tickers in [('KOSPI', '🔵', KOSPI_TOP10), ('KOSDAQ', '🟢', KOSDAQ_TOP10)]:
-              stocks = get_quotes(tickers)
+          for label, emoji, ticker_list in [('KOSPI', '🔵', KOSPI), ('KOSDAQ', '🟢', KOSDAQ)]:
+              stocks = get_data(ticker_list)
               lines.append(f"*{emoji} {label} 시총 TOP 10*")
               for i, s in enumerate(stocks, 1):
-                  name = s.get('shortName', '?')
-                  price = f"{s.get('regularMarketPrice', 0):,.0f}원"
-                  cap = fmt_cap(s.get('marketCap', 0))
-                  change = fmt_change(s.get('regularMarketChangePercent', 0))
-                  lines.append(f"{i}. {name} | {price} | 시총 {cap} | {change}")
+                  cap_str = fmt_cap(s['cap']) if s['cap'] else 'N/A'
+                  lines.append(f"{i}. {s['name']} | {s['price']:,.0f}원 | 시총 {cap_str} | {fmt_change(s['change'])}")
               lines.append("")
 
           lines.append("_출처: Yahoo Finance_")
@@ -84,7 +94,7 @@ jobs:
           print(message)
 
           resp = requests.post(SLACK_WEBHOOK_URL, json={"text": message})
-          print(f"Slack response: {resp.status_code} {resp.text}")
+          print(f"Slack: {resp.status_code} {resp.text}")
           if resp.status_code != 200:
               exit(1)
           EOF
