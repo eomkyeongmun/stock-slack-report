@@ -2,7 +2,7 @@ name: 주식 시총 리포트
 
 on:
   schedule:
-    - cron: '20 23 * * 0-4'  # 매일 08:20 KST (월~금)
+    - cron: '20 23 * * 1-5'  # 매일 08:20 KST (월~금)
   workflow_dispatch:
 
 permissions:
