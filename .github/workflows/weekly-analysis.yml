@@ -2,7 +2,7 @@ name: 주간 주식 분석
 
 on:
   schedule:
-    - cron: '25 23 * * 0'  # 월요일 08:25 KST
+    - cron: '25 23 * * 1'  # 월요일 08:25 KST
   workflow_dispatch:
 
 jobs:
