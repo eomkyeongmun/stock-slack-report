@@ -1,0 +1,42 @@
+[
+  {
+    "date": "2026-05-14",
+    "rank": 1,
+    "name": "삼성전자",
+    "ticker": "005930",
+    "buy_price": 296000,
+    "shares": 1
+  },
+  {
+    "date": "2026-05-14",
+    "rank": 2,
+    "name": "SK하이닉스",
+    "ticker": "000660",
+    "buy_price": 1970000,
+    "shares": 1
+  },
+  {
+    "date": "2026-05-14",
+    "rank": 3,
+    "name": "삼성전자우",
+    "ticker": "005935",
+    "buy_price": 193700,
+    "shares": 1
+  },
+  {
+    "date": "2026-05-14",
+    "rank": 4,
+    "name": "SK스퀘어",
+    "ticker": "402340",
+    "buy_price": 1171000,
+    "shares": 1
+  },
+  {
+    "date": "2026-05-14",
+    "rank": 5,
+    "name": "현대차",
+    "ticker": "005380",
+    "buy_price": 712000,
+    "shares": 1
+  }
+]
