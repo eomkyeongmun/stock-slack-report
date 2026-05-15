@@ -41,6 +41,59 @@ jobs:
           start_date = weekly_data[0]['date']
           end_date = weekly_data[-1]['date']
 
+          # 모의투자 수익률 계산
+          portfolio_section = ""
+          portfolio_path = 'portfolio.json'
+          if os.path.exists(portfolio_path):
+              with open(portfolio_path, encoding='utf-8') as f:
+                  portfolio = json.load(f)
+
+              # 최신 종가 (가장 최근 데이터 파일)
+              latest_prices = {}
+              for s in weekly_data[-1]['kospi']:
+                  latest_prices[s['ticker']] = s['close']
+
+              total_invested = 0
+              total_current = 0
+              stock_summary = {}
+
+              for p in portfolio:
+                  ticker = p['ticker']
+                  buy_price = p['buy_price']
+                  current_price = latest_prices.get(ticker, buy_price)
+                  invested = buy_price
+                  current = current_price
+
+                  total_invested += invested
+                  total_current += current
+
+                  name = p['name']
+                  if name not in stock_summary:
+                      stock_summary[name] = {'invested': 0, 'current': 0, 'count': 0}
+                  stock_summary[name]['invested'] += invested
+                  stock_summary[name]['current'] += current
+                  stock_summary[name]['count'] += 1
+
+              total_pnl = total_current - total_invested
+              total_pnl_pct = total_pnl / total_invested * 100 if total_invested > 0 else 0
+              total_sign = "+" if total_pnl >= 0 else ""
+
+              lines_pf = [f"*💼 모의투자 수익률 현황 (기준: {end_date})*"]
+              lines_pf.append(f"총 투자금: {total_invested:,}원 | 평가금액: {total_current:,}원")
+              lines_pf.append(f"총 손익: {total_sign}{total_pnl:,}원 ({total_sign}{total_pnl_pct:.2f}%)")
+              lines_pf.append("")
+
+              sorted_stocks = sorted(stock_summary.items(), key=lambda x: (x[1]['current']-x[1]['invested'])/x[1]['invested'] if x[1]['invested'] else 0, reverse=True)
+              lines_pf.append("*종목별 손익*")
+              for name, v in sorted_stocks:
+                  pnl = v['current'] - v['invested']
+                  pnl_pct = pnl / v['invested'] * 100 if v['invested'] else 0
+                  sign = "+" if pnl >= 0 else ""
+                  emoji = "📈" if pnl >= 0 else "📉"
+                  lines_pf.append(f"{emoji} {name} ({v['count']}주) | {sign}{pnl:,}원 ({sign}{pnl_pct:.2f}%)")
+
+              portfolio_section = "\n".join(lines_pf)
+
           # 일별 TOP3 요약
           daily_summary = []
           for day in weekly_data:
@@ -90,7 +143,8 @@ jobs:
           message = (
               f"*📅 주간 KOSPI 분석 — {start_date} ~ {end_date}*\n\n"
               f"*🤖 AI 주간 분석*\n{ai_analysis}\n\n"
-              "_출처: KRX_"
+              + (f"{portfolio_section}\n\n" if portfolio_section else "")
+              + "_출처: KRX_"
           )
           print(message)
 

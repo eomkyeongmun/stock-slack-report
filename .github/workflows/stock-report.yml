@@ -122,6 +122,34 @@ jobs:
               json.dump(data, f, ensure_ascii=False, indent=2)
           print(f"Saved {json_path}")
 
+          # 모의투자 - TOP5 매수 기록
+          portfolio_path = 'portfolio.json'
+          if os.path.exists(portfolio_path):
+              with open(portfolio_path, encoding='utf-8') as f:
+                  portfolio = json.load(f)
+          else:
+              portfolio = []
+
+          already_bought = any(p['date'] == prev_display for p in portfolio)
+          if not already_bought and kospi_df is not None:
+              for i, (ticker, row) in enumerate(kospi_df.head(5).iterrows(), 1):
+                  name = stock.get_market_ticker_name(ticker)
+                  buy_price = int(row.get('종가', 0))
+                  if buy_price > 0:
+                      portfolio.append({
+                          "date": prev_display,
+                          "rank": i,
+                          "name": name,
+                          "ticker": ticker,
+                          "buy_price": buy_price,
+                          "shares": 1
+                      })
+              with open(portfolio_path, 'w', encoding='utf-8') as f:
+                  json.dump(portfolio, f, ensure_ascii=False, indent=2)
+              print(f"Portfolio updated: {len(portfolio)} entries")
+          else:
+              print(f"Portfolio: {prev_display} already recorded, skipping")
+
           # Claude 분석
           summary_lines = ["=== KOSPI TOP 10 ==="]
           if kospi_df is not None:
@@ -201,8 +229,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
-          git diff --staged --quiet || git commit -m "data: $(date -u +'%Y-%m-%d') 시총 스냅샷"
+          git add data/ portfolio.json
+          git diff --staged --quiet || git commit -m "data: $(date -u +'%Y-%m-%d') 시총 스냅샷 + 모의투자"
           git fetch origin main
           git rebase origin/main
           git push origin main
