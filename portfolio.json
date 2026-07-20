@@ -1718,5 +1718,45 @@
     "ticker": "009150",
     "buy_price": 1277000,
     "shares": 1
+  },
+  {
+    "date": "2026-07-20",
+    "rank": 1,
+    "name": "삼성전자",
+    "ticker": "005930",
+    "buy_price": 244000,
+    "shares": 1
+  },
+  {
+    "date": "2026-07-20",
+    "rank": 2,
+    "name": "SK하이닉스",
+    "ticker": "000660",
+    "buy_price": 1764000,
+    "shares": 1
+  },
+  {
+    "date": "2026-07-20",
+    "rank": 3,
+    "name": "SK스퀘어",
+    "ticker": "402340",
+    "buy_price": 1177000,
+    "shares": 1
+  },
+  {
+    "date": "2026-07-20",
+    "rank": 4,
+    "name": "삼성전자우",
+    "ticker": "005935",
+    "buy_price": 169200,
+    "shares": 1
+  },
+  {
+    "date": "2026-07-20",
+    "rank": 5,
+    "name": "삼성전기",
+    "ticker": "009150",
+    "buy_price": 1275000,
+    "shares": 1
   }
 ]
