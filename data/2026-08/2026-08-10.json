@@ -1,0 +1,489 @@
+{
+  "date": "2026-08-10",
+  "kospi": [
+    {
+      "rank": 1,
+      "ticker": "005930",
+      "name": "삼성전자",
+      "close": 230000,
+      "market_cap": 1344644079840000,
+      "change_pct": -0.43
+    },
+    {
+      "rank": 2,
+      "ticker": "000660",
+      "name": "SK하이닉스",
+      "close": 1420000,
+      "market_cap": 1037299158300000,
+      "change_pct": -0.14
+    },
+    {
+      "rank": 3,
+      "ticker": "005935",
+      "name": "삼성전자우",
+      "close": 172000,
+      "market_cap": 138007846916000,
+      "change_pct": 1.12
+    },
+    {
+      "rank": 4,
+      "ticker": "402340",
+      "name": "SK스퀘어",
+      "close": 949000,
+      "market_cap": 125228508314000,
+      "change_pct": 1.06
+    },
+    {
+      "rank": 5,
+      "ticker": "009150",
+      "name": "삼성전기",
+      "close": 1274000,
+      "market_cap": 95159768704000,
+      "change_pct": -0.31
+    },
+    {
+      "rank": 6,
+      "ticker": "373220",
+      "name": "LG에너지솔루션",
+      "close": 367500,
+      "market_cap": 85995000000000,
+      "change_pct": 2.08
+    },
+    {
+      "rank": 7,
+      "ticker": "005380",
+      "name": "현대차",
+      "close": 408000,
+      "market_cap": 83541168528000,
+      "change_pct": 3.16
+    },
+    {
+      "rank": 8,
+      "ticker": "207940",
+      "name": "삼성바이오로직스",
+      "close": 1569000,
+      "market_cap": 72630502119000,
+      "change_pct": 0.84
+    },
+    {
+      "rank": 9,
+      "ticker": "105560",
+      "name": "KB금융",
+      "close": 171700,
+      "market_cap": 60899883927800,
+      "change_pct": -2.33
+    },
+    {
+      "rank": 10,
+      "ticker": "012450",
+      "name": "한화에어로스페이스",
+      "close": 1152000,
+      "market_cap": 59401037952000,
+      "change_pct": 5.01
+    },
+    {
+      "rank": 11,
+      "ticker": "032830",
+      "name": "삼성생명",
+      "close": 280500,
+      "market_cap": 56100000000000,
+      "change_pct": 1.81
+    },
+    {
+      "rank": 12,
+      "ticker": "329180",
+      "name": "HD현대중공업",
+      "close": 532000,
+      "market_cap": 55839371700000,
+      "change_pct": 5.14
+    },
+    {
+      "rank": 13,
+      "ticker": "028260",
+      "name": "삼성물산",
+      "close": 336000,
+      "market_cap": 54488307216000,
+      "change_pct": -0.15
+    },
+    {
+      "rank": 14,
+      "ticker": "000270",
+      "name": "기아",
+      "close": 135500,
+      "market_cap": 52900961229000,
+      "change_pct": 0.44
+    },
+    {
+      "rank": 15,
+      "ticker": "034020",
+      "name": "두산에너빌리티",
+      "close": 79900,
+      "market_cap": 51180835565400,
+      "change_pct": 3.63
+    },
+    {
+      "rank": 16,
+      "ticker": "055550",
+      "name": "신한지주",
+      "close": 106400,
+      "market_cap": 49949505429600,
+      "change_pct": -3.27
+    },
+    {
+      "rank": 17,
+      "ticker": "068270",
+      "name": "셀트리온",
+      "close": 201000,
+      "market_cap": 46743294906000,
+      "change_pct": 0.85
+    },
+    {
+      "rank": 18,
+      "ticker": "012330",
+      "name": "현대모비스",
+      "close": 505000,
+      "market_cap": 45819954415000,
+      "change_pct": 1.71
+    },
+    {
+      "rank": 19,
+      "ticker": "006400",
+      "name": "삼성SDI",
+      "close": 481500,
+      "market_cap": 38801932695000,
+      "change_pct": 4.9
+    },
+    {
+      "rank": 20,
+      "ticker": "034730",
+      "name": "SK",
+      "close": 513000,
+      "market_cap": 37193886639000,
+      "change_pct": 0.98
+    },
+    {
+      "rank": 21,
+      "ticker": "086790",
+      "name": "하나금융지주",
+      "close": 130400,
+      "market_cap": 35777554339200,
+      "change_pct": -3.19
+    },
+    {
+      "rank": 22,
+      "ticker": "035420",
+      "name": "NAVER",
+      "close": 211500,
+      "market_cap": 33193707183000,
+      "change_pct": 0.71
+    },
+    {
+      "rank": 23,
+      "ticker": "010120",
+      "name": "LS ELECTRIC",
+      "close": 208500,
+      "market_cap": 31275000000000,
+      "change_pct": 3.73
+    },
+    {
+      "rank": 24,
+      "ticker": "066570",
+      "name": "LG전자",
+      "close": 190000,
+      "market_cap": 30948081220000,
+      "change_pct": 2.7
+    },
+    {
+      "rank": 25,
+      "ticker": "042660",
+      "name": "한화오션",
+      "close": 94400,
+      "market_cap": 28925424393600,
+      "change_pct": 5.59
+    },
+    {
+      "rank": 26,
+      "ticker": "009540",
+      "name": "HD한국조선해양",
+      "close": 404000,
+      "market_cap": 28592338864000,
+      "change_pct": 1.38
+    },
+    {
+      "rank": 27,
+      "ticker": "000810",
+      "name": "삼성화재",
+      "close": 630000,
+      "market_cap": 28127907990000,
+      "change_pct": -2.33
+    },
+    {
+      "rank": 28,
+      "ticker": "267260",
+      "name": "HD현대일렉트릭",
+      "close": 764000,
+      "market_cap": 27540011140000,
+      "change_pct": 0.26
+    },
+    {
+      "rank": 29,
+      "ticker": "298040",
+      "name": "효성중공업",
+      "close": 2934000,
+      "market_cap": 27358223832000,
+      "change_pct": 3.6
+    },
+    {
+      "rank": 30,
+      "ticker": "005490",
+      "name": "POSCO홀딩스",
+      "close": 336000,
+      "market_cap": 26625153072000,
+      "change_pct": 1.51
+    },
+    {
+      "rank": 31,
+      "ticker": "010130",
+      "name": "고려아연",
+      "close": 1235000,
+      "market_cap": 25778116715000,
+      "change_pct": 11.66
+    },
+    {
+      "rank": 32,
+      "ticker": "316140",
+      "name": "우리금융지주",
+      "close": 33350,
+      "market_cap": 24281790894700,
+      "change_pct": -4.17
+    },
+    {
+      "rank": 33,
+      "ticker": "015760",
+      "name": "한국전력",
+      "close": 35700,
+      "market_cap": 22918117548900,
+      "change_pct": 0.28
+    },
+    {
+      "rank": 34,
+      "ticker": "096770",
+      "name": "SK이노베이션",
+      "close": 124500,
+      "market_cap": 21047072106000,
+      "change_pct": 3.49
+    },
+    {
+      "rank": 35,
+      "ticker": "138040",
+      "name": "메리츠금융지주",
+      "close": 123500,
+      "market_cap": 20667388215500,
+      "change_pct": -2.22
+    },
+    {
+      "rank": 36,
+      "ticker": "006800",
+      "name": "미래에셋증권",
+      "close": 36400,
+      "market_cap": 20368234432000,
+      "change_pct": 7.37
+    },
+    {
+      "rank": 37,
+      "ticker": "011200",
+      "name": "HMM",
+      "close": 21450,
+      "market_cap": 20232454456500,
+      "change_pct": -1.61
+    },
+    {
+      "rank": 38,
+      "ticker": "000150",
+      "name": "두산",
+      "close": 1233000,
+      "market_cap": 19966998555000,
+      "change_pct": 3.53
+    },
+    {
+      "rank": 39,
+      "ticker": "010140",
+      "name": "삼성중공업",
+      "close": 22550,
+      "market_cap": 19844000000000,
+      "change_pct": 2.27
+    },
+    {
+      "rank": 40,
+      "ticker": "051910",
+      "name": "LG화학",
+      "close": 278000,
+      "market_cap": 19624671354000,
+      "change_pct": 0.72
+    },
+    {
+      "rank": 41,
+      "ticker": "042700",
+      "name": "한미반도체",
+      "close": 205500,
+      "market_cap": 19586657100000,
+      "change_pct": 6.86
+    },
+    {
+      "rank": 42,
+      "ticker": "033780",
+      "name": "KT&G",
+      "close": 185700,
+      "market_cap": 19277601679200,
+      "change_pct": -1.64
+    },
+    {
+      "rank": 43,
+      "ticker": "017670",
+      "name": "SK텔레콤",
+      "close": 85000,
+      "market_cap": 18257154505000,
+      "change_pct": -3.63
+    },
+    {
+      "rank": 44,
+      "ticker": "079550",
+      "name": "LIG디펜스앤에어로스페이스",
+      "close": 823000,
+      "market_cap": 18106000000000,
+      "change_pct": 11.07
+    },
+    {
+      "rank": 45,
+      "ticker": "267250",
+      "name": "HD현대",
+      "close": 226000,
+      "market_cap": 17852437210000,
+      "change_pct": 0.44
+    },
+    {
+      "rank": 46,
+      "ticker": "035720",
+      "name": "카카오",
+      "close": 39550,
+      "market_cap": 17519901318500,
+      "change_pct": -0.88
+    },
+    {
+      "rank": 47,
+      "ticker": "018260",
+      "name": "삼성에스디에스",
+      "close": 222500,
+      "market_cap": 17216560500000,
+      "change_pct": 0.45
+    },
+    {
+      "rank": 48,
+      "ticker": "064350",
+      "name": "현대로템",
+      "close": 150200,
+      "market_cap": 16393172408600,
+      "change_pct": 2.25
+    },
+    {
+      "rank": 49,
+      "ticker": "003550",
+      "name": "LG",
+      "close": 107600,
+      "market_cap": 16268259630400,
+      "change_pct": -0.46
+    },
+    {
+      "rank": 50,
+      "ticker": "024110",
+      "name": "기업은행",
+      "close": 20250,
+      "market_cap": 16147873847250,
+      "change_pct": -2.41
+    }
+  ],
+  "foreign_net_buy": [
+    {
+      "name": "SK스퀘어",
+      "amount": 59190411000
+    },
+    {
+      "name": "현대차",
+      "amount": 40937556000
+    },
+    {
+      "name": "LIG디펜스앤에어로스페이스",
+      "amount": 35266591500
+    },
+    {
+      "name": "셀트리온",
+      "amount": 29378598000
+    },
+    {
+      "name": "한화오션",
+      "amount": 25883584100
+    },
+    {
+      "name": "삼양식품",
+      "amount": 21453914500
+    },
+    {
+      "name": "한미반도체",
+      "amount": 20287533300
+    },
+    {
+      "name": "삼성생명",
+      "amount": 16336272750
+    },
+    {
+      "name": "삼성바이오로직스",
+      "amount": 15241722000
+    },
+    {
+      "name": "SK",
+      "amount": 13049180000
+    }
+  ],
+  "inst_net_buy": [
+    {
+      "name": "삼성전자",
+      "amount": 145124296500
+    },
+    {
+      "name": "SK하이닉스",
+      "amount": 104786029000
+    },
+    {
+      "name": "삼성SDI",
+      "amount": 43973356250
+    },
+    {
+      "name": "LG에너지솔루션",
+      "amount": 33933825000
+    },
+    {
+      "name": "HD현대중공업",
+      "amount": 32538284000
+    },
+    {
+      "name": "고려아연",
+      "amount": 29458875000
+    },
+    {
+      "name": "GS건설",
+      "amount": 28831452650
+    },
+    {
+      "name": "LG전자",
+      "amount": 24867610350
+    },
+    {
+      "name": "엘앤에프",
+      "amount": 21932053800
+    },
+    {
+      "name": "SK이노베이션",
+      "amount": 21333487700
+    }
+  ]
+}
